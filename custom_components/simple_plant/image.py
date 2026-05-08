@@ -62,7 +62,8 @@ class SimplePlantImage(ImageEntity):
         device = self.coordinator.device
 
         image_path = str(entry.data.get("photo"))
-        self._attr_image_url = hass.config.path(image_path.lstrip("/"))
+        self._image_file_path = Path(hass.config.path(image_path.lstrip("/")))
+        self._attr_image_url = None  # serve via async_image(), not a URL redirect
 
         self._attr_content_type = self._get_content_type(Path(image_path))
 
@@ -85,9 +86,8 @@ class SimplePlantImage(ImageEntity):
 
     async def async_image(self) -> bytes | None:
         """Return bytes of image."""
-        file_path = Path(str(self._attr_image_url))
-        if file_path.exists():
-            async with aiofiles.open(file_path, mode="rb") as file:
+        if self._image_file_path.exists():
+            async with aiofiles.open(self._image_file_path, mode="rb") as file:
                 return await file.read()
         LOGGER.error("Image file not found")
         return None

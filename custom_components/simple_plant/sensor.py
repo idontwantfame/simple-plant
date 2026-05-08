@@ -88,7 +88,7 @@ class SimplePlantSensor(SensorEntity):
 
     @property
     def native_value(self) -> date | None:
-        """Return true if the binary_sensor is on."""
+        """Return the next watering date."""
         return (
             self._fallback_value
             if self._attr_native_value is None

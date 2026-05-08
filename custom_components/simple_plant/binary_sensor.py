@@ -41,7 +41,6 @@ class SimplePlantBinarySensor(BinarySensorEntity):
     ) -> None:
         """Initialize the binary_sensor class."""
         super().__init__()
-        self._hass = hass
         self.entity_description = description
         self.coordinator: SimplePlantCoordinator = hass.data[DOMAIN][entry.entry_id]
 
@@ -72,7 +71,7 @@ class SimplePlantBinarySensor(BinarySensorEntity):
         return self.coordinator.device
 
     def get_dates(self) -> dict[str, datetime] | None:
-        """Get dates from relevants device entites states."""
+        """Get dates from relevant device entity states."""
         return self.coordinator.get_dates()
 
     async def async_added_to_hass(self) -> None:

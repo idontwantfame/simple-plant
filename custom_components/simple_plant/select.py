@@ -117,3 +117,4 @@ class SimplePlantSelect(SelectEntity):
         # Save to persistent storage
         if self.unique_id is not None:
             await self.coordinator.async_store_value(self.unique_id, option)
+        self.async_write_ha_state()

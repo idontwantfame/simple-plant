@@ -120,7 +120,7 @@ class SimplePlantCoordinator(DataUpdateCoordinator[dict]):
         await self.async_set_last_watered(today)
 
     def get_dates(self) -> dict[str, datetime] | None:
-        """Get dates from relevants device entites states."""
+        """Get dates from relevant device entity states."""
         states_to_get = {
             "last_watered": f"date.{DOMAIN}_last_watered_{self.device}",
             "nb_days": f"number.{DOMAIN}_days_between_waterings_{self.device}",
@@ -132,14 +132,14 @@ class SimplePlantCoordinator(DataUpdateCoordinator[dict]):
         # Check if all states are available
         if any(
             data[key] is None
-            or not data[key].state  # type: ignore noqa: PGH003
-            or data[key].state == "unavailable"  # type: ignore noqa: PGH003
+            or not data[key].state  # type: ignore[union-attr]  # noqa: PGH003
+            or data[key].state == "unavailable"  # type: ignore[union-attr]  # noqa: PGH003
             for key in states_to_get
         ):
             LOGGER.warning("%s: Couldn't get all states", self.device)
             return None
 
-        states = {key: data.state for key, data in data.items() if data is not None}
+        states = {key: state_obj.state for key, state_obj in data.items() if state_obj is not None}
 
         last_watered_date = datetime.fromisoformat(states["last_watered"])
         nb_days = float(states["nb_days"])

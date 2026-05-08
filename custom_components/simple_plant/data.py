@@ -12,7 +12,7 @@ STORAGE_VERSION = 1
 
 class SimplePlantStore:
     """
-    Class to hold simple_plant storage hanlders.
+    Class to hold simple_plant storage handlers.
 
     The goal of such a class it to provide helpers to allow state persistance
     """
@@ -84,9 +84,9 @@ class SimplePlantStore:
             device_data: dict[str, Any] = self._data.get(device, {})
             new_data = {}
             for key, value in device_data.items():
-                if device in key:
-                    striped_key = key[: -len(device)]
-                    new_data[striped_key + new_id] = value
+                if key.endswith(device):
+                    stripped_key = key[: -len(device)]
+                    new_data[stripped_key + new_id] = value
                 else:
                     new_data[key] = value
             self._data[new_id] = new_data

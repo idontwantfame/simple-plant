@@ -51,6 +51,7 @@ async def save_image(hass: HomeAssistant, file_id: str) -> str:
 
 def remove_photo(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove the photo file of a config entry."""
+    file_path: Path | None = None
     try:
         # Get the photo path from the entry's data
         photo_path = entry.data.get("photo")
@@ -114,7 +115,11 @@ def option_form(suggested_species: str | None = None) -> vol.Schema:
     LOGGER.debug("option_flow, 1st call : displaying form")
     return vol.Schema(
         {
-            vol.Optional("species", default="", description=suggested_species): str,
+            vol.Optional(
+                "species",
+                default="",
+                description={"suggested_value": suggested_species or ""},
+            ): str,
             vol.Optional("photo"): selector.FileSelector(
                 selector.FileSelectorConfig(accept="image/*")
             ),
@@ -128,15 +133,17 @@ def option_form(suggested_species: str | None = None) -> vol.Schema:
 class SimplePlantFlowHandler(ConfigFlow, domain=DOMAIN):
     """Config flow for Simple Plant."""
 
+    VERSION = 1
+
     def __init__(self) -> None:
         """Init."""
         self._user_inputs: dict = {}
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:  # noqa: ARG004
         """Get options flow for this handler."""
-        return SimplePlantOptionFlowHandler(config_entry)
+        return SimplePlantOptionFlowHandler()
 
     async def async_step_user(self, user_input: dict | None = None) -> ConfigFlowResult:
         """
@@ -172,6 +179,7 @@ class SimplePlantFlowHandler(ConfigFlow, domain=DOMAIN):
         if "photo" not in user_input:
             return self.async_show_form(
                 step_id="user",
+                data_schema=user_form(),
                 errors={"base": "upload_failed_generic"},
             )
         file_id = user_input["photo"]
@@ -181,6 +189,7 @@ class SimplePlantFlowHandler(ConfigFlow, domain=DOMAIN):
         except ValueError:
             return self.async_show_form(
                 step_id="user",
+                data_schema=user_form(),
                 errors={"base": "upload_failed_type"},
             )
 
@@ -190,10 +199,9 @@ class SimplePlantFlowHandler(ConfigFlow, domain=DOMAIN):
 class SimplePlantOptionFlowHandler(OptionsFlow):
     """Reconfiguration flow for Simple Plant."""
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self) -> None:
         """Init."""
         self.user_inputs: dict = {}
-        self.entry = entry
 
     async def async_step_init(self, user_input: dict | None = None) -> ConfigFlowResult:
         """
@@ -202,7 +210,7 @@ class SimplePlantOptionFlowHandler(OptionsFlow):
         1st call = return form to show
         2nd call = return form with user input
         """
-        form = option_form(self.entry.data.get("species"))
+        form = option_form(self.config_entry.data.get("species"))
 
         if user_input is None:
             # 1st call
@@ -215,10 +223,11 @@ class SimplePlantOptionFlowHandler(OptionsFlow):
             try:
                 file_id = user_input["photo"]
                 self.user_inputs["photo"] = await save_image(self.hass, file_id)
-                remove_photo(self.hass, self.entry)
+                remove_photo(self.hass, self.config_entry)
             except ValueError:
                 return self.async_show_form(
-                    step_id="user",
+                    step_id="init",
+                    data_schema=form,
                     errors={"base": "upload_failed_type"},
                 )
 
@@ -226,7 +235,7 @@ class SimplePlantOptionFlowHandler(OptionsFlow):
         return await self.async_end()
 
     async def async_end(self) -> ConfigFlowResult:
-        """Finitsh ConfigEntry modification."""
+        """Finish ConfigEntry modification."""
         LOGGER.info(
             "Entry %s is being recreated",
             self.config_entry.entry_id,

@@ -29,7 +29,7 @@ ENTITY_DESCRIPTIONS = (
         device_class=NumberDeviceClass.DURATION,
         mode=NumberMode.BOX,
         icon="mdi:counter",
-        native_step=0,
+        native_step=1,
         native_unit_of_measurement=UnitOfTime.DAYS,
     ),
 )
@@ -64,8 +64,6 @@ class SimplePlantNumber(NumberEntity):
     ) -> None:
         """Initialize the number class."""
         super().__init__()
-        self._hass = hass
-        self._entry = entry
         self.entity_description = description
         self.coordinator: SimplePlantCoordinator = hass.data[DOMAIN][entry.entry_id]
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import async_get_hass
 from homeassistant.helpers.config_validation import config_entry_only_config_schema
 from homeassistant.helpers.device_registry import (
     EVENT_DEVICE_REGISTRY_UPDATED,
@@ -54,11 +53,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    async def _on_device_registry_updated(
+        event: Event[EventDeviceRegistryUpdatedData],
+    ) -> None:
+        """Handle update of device registry."""
+        await on_device_registry_update_handler(hass, event)
+
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     entry.async_on_unload(
         hass.bus.async_listen(
             EVENT_DEVICE_REGISTRY_UPDATED,  # type: ignore[arg-type]
-            on_device_registry_update_handler,
+            _on_device_registry_updated,
         )
     )
 
@@ -66,6 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def on_device_registry_update_handler(
+    hass: HomeAssistant,
     event: Event[EventDeviceRegistryUpdatedData],
 ) -> None:
     """Handle update of device registry."""
@@ -73,7 +79,6 @@ async def on_device_registry_update_handler(
     if not changes or not isinstance(changes, dict) or "name_by_user" not in changes:
         return
     # Get device
-    hass = async_get_hass()
     device_registry = async_get(hass)
     device = device_registry.async_get(event.data.get("device_id"))
     if not device:
