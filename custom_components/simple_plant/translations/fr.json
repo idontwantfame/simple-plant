@@ -7,7 +7,7 @@
                     "name": "Nom",
                     "last_watered": "Dernier arrosage",
                     "days_between_waterings": "Nombre de jours entre chaque arrosage",
-                    "photo": "Photo",
+                    "photo": "Photo (Optionnel)",
                     "health": "Santé actuelle (Optionnel)",
                     "species": "Espèce/Variété (Optionnel)"
                 }

@@ -7,7 +7,7 @@
                     "name": "Name",
                     "last_watered": "Last time watered",
                     "days_between_waterings": "Days between watering",
-                    "photo": "Photo",
+                    "photo": "Photo (Optional)",
                     "health": "Current health (Optional)",
                     "species": "Species/Variety of your plant (Optional)"
                 }
