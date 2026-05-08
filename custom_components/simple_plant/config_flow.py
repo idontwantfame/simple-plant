@@ -6,8 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import aiofiles
 import voluptuous as vol
+from PIL import Image, UnidentifiedImageError
 from homeassistant.components.file_upload import process_uploaded_file
 from homeassistant.config_entries import (
     ConfigEntry,
@@ -20,7 +20,7 @@ from homeassistant.helpers import selector
 from homeassistant.util import slugify
 from homeassistant.util.dt import as_local, utcnow
 
-from .const import DOMAIN, HEALTH_OPTIONS, IMAGES_MIME_TYPES, LOGGER, MONITORED_METRICS, STORAGE_DIR
+from .const import DOMAIN, HEALTH_OPTIONS, LOGGER, MONITORED_METRICS, STORAGE_DIR
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -28,24 +28,29 @@ if TYPE_CHECKING:
 ## UTILS
 
 
+_MAX_IMAGE_PX = 800
+_JPEG_QUALITY = 80
+
+
 async def save_image(hass: HomeAssistant, file_id: str) -> str:
-    """Permanently save an uploaded image."""
+    """Save an uploaded image resized to fit within 800x800 px, compressed as JPEG."""
     with process_uploaded_file(hass, file_id) as uploaded_file:
-        # Save the file
         storage_dir = Path(hass.config.path(STORAGE_DIR))
         storage_dir.mkdir(parents=True, exist_ok=True)
 
-        suffix = uploaded_file.suffix
-        if suffix not in IMAGES_MIME_TYPES:
-            raise ValueError
-        file_path = storage_dir / f"{file_id}{suffix}"
+        file_path = storage_dir / f"{file_id}.jpg"
+        source_path = Path(str(uploaded_file))
 
-        # Safely copy the file using async operations
-        async with aiofiles.open(file_path, "wb") as destination_file:  # noqa: SIM117
-            async with aiofiles.open(uploaded_file, "rb") as source_file:
-                await destination_file.write(await source_file.read())
+        def _resize_and_save() -> None:
+            try:
+                with Image.open(source_path) as img:
+                    img.thumbnail((_MAX_IMAGE_PX, _MAX_IMAGE_PX), Image.LANCZOS)
+                    img.convert("RGB").save(file_path, "JPEG", quality=_JPEG_QUALITY, optimize=True)
+            except (UnidentifiedImageError, OSError) as err:
+                raise ValueError from err
 
-        # relative path
+        await hass.async_add_executor_job(_resize_and_save)
+
         return f"/{STORAGE_DIR}/{file_path.name}"
 
 
