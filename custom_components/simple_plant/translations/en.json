@@ -2,15 +2,15 @@
     "config": {
         "step": {
             "user": {
-                "description": "Provide base information for your new plant. If you need help with the configuration have a look here: https://github.com/ndesgranges/simple-plant",
-                "data": {
-                    "name": "Name",
-                    "last_watered": "Last time watered",
-                    "days_between_waterings": "Days between watering",
-                    "photo": "Photo (Optional)",
-                    "health": "Current health (Optional)",
-                    "species": "Species/Variety of your plant (Optional)"
-                }
+              "description": "Provide base information for your new plant. If you need help with the configuration have a look here: https://github.com/idontwantfame/simple-plant",
+              "data": {
+                "name": "Name",
+                "last_watered": "Last time watered",
+                "days_between_waterings": "Days between watering",
+                "photo": "Photo (Optional)",
+                "health": "Current health (Optional)",
+                "species": "Species/Variety of your plant (Optional)"
+              }
             },
             "advanced_sensors": {
                 "description": "Optionally link your plant's environmental sensors. These sensors will be displayed under your plant device and monitored against thresholds.",
@@ -50,11 +50,11 @@
     "options": {
         "step": {
             "init": {
-                "description": "Modify the species or picture of your plant. If you need help with the configuration have a look here: https://github.com/ndesgranges/simple-plant",
-                "data": {
-                    "photo": "Photo",
-                    "species": "Species/Variety of your plant (Optional)"
-                }
+              "description": "Modify the species or picture of your plant. If you need help with the configuration have a look here: https://github.com/idontwantfame/simple-plant",
+              "data": {
+                "photo": "Photo",
+                "species": "Species/Variety of your plant (Optional)"
+              }
             },
             "advanced_sensors": {
                 "description": "Link your plant's environmental sensors. These sensors will be displayed under your plant device and monitored against thresholds.",

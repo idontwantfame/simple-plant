@@ -2,15 +2,15 @@
     "config": {
         "step": {
             "user": {
-                "description": "Informations de base de votre plante. Si vous avez besoin d'aide, allez jeter un oeil ici : https://github.com/ndesgranges/simple-plant",
-                "data": {
-                    "name": "Nom",
-                    "last_watered": "Dernier arrosage",
-                    "days_between_waterings": "Nombre de jours entre chaque arrosage",
-                    "photo": "Photo (Optionnel)",
-                    "health": "Santé actuelle (Optionnel)",
-                    "species": "Espèce/Variété (Optionnel)"
-                }
+              "description": "Informations de base de votre plante. Si vous avez besoin d'aide, allez jeter un oeil ici : https://github.com/idontwantfame/simple-plant",
+              "data": {
+                "name": "Nom",
+                "last_watered": "Dernier arrosage",
+                "days_between_waterings": "Nombre de jours entre chaque arrosage",
+                "photo": "Photo (Optionnel)",
+                "health": "Santé actuelle (Optionnel)",
+                "species": "Espèce/Variété (Optionnel)"
+              }
             },
             "advanced_sensors": {
                 "description": "Associez optionnellement les capteurs environnementaux de votre plante. Ces capteurs s'afficheront sous votre appareil plante et seront surveillés par rapport aux seuils.",
@@ -50,11 +50,11 @@
     "options": {
         "step": {
             "init": {
-                "description": "Modifiez L'image ou l'espèce de votre plante. Si vous avez besoin d'aide, allez jeter un oeil ici : https://github.com/ndesgranges/simple-plant",
-                "data": {
-                    "photo": "Photo",
-                    "species": "Espèce/Variété"
-                }
+              "description": "Modifiez L'image ou l'espèce de votre plante. Si vous avez besoin d'aide, allez jeter un oeil ici : https://github.com/idontwantfame/simple-plant",
+              "data": {
+                "photo": "Photo",
+                "species": "Espèce/Variété"
+              }
             },
             "advanced_sensors": {
                 "description": "Associez les capteurs environnementaux de votre plante. Ces capteurs s'afficheront sous votre appareil plante et seront surveillés par rapport aux seuils.",

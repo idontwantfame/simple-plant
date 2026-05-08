@@ -2,7 +2,7 @@
 Custom integration to integrate simple_plant with Home Assistant.
 
 For more details about this integration, please refer to
-https://github.com/ndesgranges/simple-plant
+https://github.com/idontwantfame/simple-plant
 """
 
 from __future__ import annotations
