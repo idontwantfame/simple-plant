@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import slugify
@@ -119,33 +120,43 @@ class SimplePlantCoordinator(DataUpdateCoordinator[dict]):
             )
         await self.async_set_last_watered(today)
 
-    def get_dates(self) -> dict[str, datetime] | None:
+    def get_dates(self) -> dict[str, date] | None:
         """Get dates from relevant device entity states."""
-        states_to_get = {
-            "last_watered": f"date.{DOMAIN}_last_watered_{self.device}",
-            "nb_days": f"number.{DOMAIN}_days_between_waterings_{self.device}",
+        registry = er.async_get(self.hass)
+
+        entity_ids = {
+            "last_watered": registry.async_get_entity_id(
+                "date", DOMAIN, f"{DOMAIN}_last_watered_{self.device}"
+            ),
+            "nb_days": registry.async_get_entity_id(
+                "number", DOMAIN, f"{DOMAIN}_days_between_waterings_{self.device}"
+            ),
         }
 
+        if any(eid is None for eid in entity_ids.values()):
+            LOGGER.warning("%s: Couldn't resolve all entity IDs from registry", self.device)
+            return None
+
         # Get states from hass
-        data = {key: self.hass.states.get(eid) for key, eid in states_to_get.items()}
+        data = {key: self.hass.states.get(eid) for key, eid in entity_ids.items()}  # type: ignore[arg-type]
 
         # Check if all states are available
         if any(
             data[key] is None
             or not data[key].state  # type: ignore[union-attr]  # noqa: PGH003
             or data[key].state == "unavailable"  # type: ignore[union-attr]  # noqa: PGH003
-            for key in states_to_get
+            for key in entity_ids
         ):
             LOGGER.warning("%s: Couldn't get all states", self.device)
             return None
 
         states = {key: state_obj.state for key, state_obj in data.items() if state_obj is not None}
 
-        last_watered_date = datetime.fromisoformat(states["last_watered"])
-        nb_days = float(states["nb_days"])
+        last_watered_date = datetime.fromisoformat(states["last_watered"]).date()
+        nb_days = int(float(states["nb_days"]))
 
         return {
             "last_watered": last_watered_date,
             "next_watering": last_watered_date + timedelta(days=nb_days),
-            "today": utcnow(),
+            "today": as_local(utcnow()).date(),
         }

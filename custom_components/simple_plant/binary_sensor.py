@@ -9,16 +9,16 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_change,
 )
-from homeassistant.util.dt import as_local
 
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from datetime import datetime
+    from datetime import date, datetime
 
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import Event, EventStateChangedData, HomeAssistant
@@ -70,7 +70,7 @@ class SimplePlantBinarySensor(BinarySensorEntity):
         """Return the device name."""
         return self.coordinator.device
 
-    def get_dates(self) -> dict[str, datetime] | None:
+    def get_dates(self) -> dict[str, date] | None:
         """Get dates from relevant device entity states."""
         return self.coordinator.get_dates()
 
@@ -78,22 +78,21 @@ class SimplePlantBinarySensor(BinarySensorEntity):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
         device = self.coordinator.device
+        registry = er.async_get(self.hass)
 
-        # Subscribe to state changes
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                f"date.{DOMAIN}_last_watered_{device}",
-                self._update_state,
+        # Subscribe to state changes, resolving current entity IDs from the registry
+        # so renamed entities are handled correctly after a restart.
+        for entity_id in filter(None, [
+            registry.async_get_entity_id("date", DOMAIN, f"{DOMAIN}_last_watered_{device}"),
+            registry.async_get_entity_id("number", DOMAIN, f"{DOMAIN}_days_between_waterings_{device}"),
+        ]):
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    entity_id,
+                    self._update_state,
+                )
             )
-        )
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                f"number.{DOMAIN}_days_between_waterings_{device}",
-                self._update_state,
-            )
-        )
         self.async_on_remove(
             async_track_time_change(
                 self.hass,
@@ -127,9 +126,7 @@ class SimplePlantTodo(SimplePlantBinarySensor):
         if not dates:
             return
 
-        self._attr_native_value = (
-            as_local(dates["today"]).date() >= as_local(dates["next_watering"]).date()
-        )
+        self._attr_native_value = dates["today"] >= dates["next_watering"]
         self.async_write_ha_state()
 
 
@@ -146,9 +143,7 @@ class SimplePlantProblem(SimplePlantBinarySensor):
         if not dates:
             return
 
-        self._attr_native_value = (
-            as_local(dates["today"]).date() > as_local(dates["next_watering"]).date()
-        )
+        self._attr_native_value = dates["today"] > dates["next_watering"]
         self.async_write_ha_state()
 
 

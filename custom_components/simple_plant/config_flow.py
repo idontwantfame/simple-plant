@@ -18,7 +18,7 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.util import slugify
-from homeassistant.util.dt import as_local, as_utc, utcnow
+from homeassistant.util.dt import as_local, utcnow
 
 from .const import DOMAIN, HEALTH_OPTIONS, IMAGES_MIME_TYPES, LOGGER, STORAGE_DIR
 
@@ -169,8 +169,8 @@ class SimplePlantFlowHandler(ConfigFlow, domain=DOMAIN):
         user_input["name_by_user"] = user_input["name"]
         # Verify date
         if "last_watered" in user_input:
-            date = as_utc(as_local(datetime.fromisoformat(user_input["last_watered"])))
-            if date > utcnow():
+            input_date = datetime.fromisoformat(user_input["last_watered"]).date()
+            if input_date > as_local(utcnow()).date():
                 return self.async_show_form(
                     step_id="user",
                     data_schema=user_form(),

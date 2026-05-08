@@ -9,11 +9,11 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
 )
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_change,
 )
-from homeassistant.util.dt import as_local
 
 from .const import DOMAIN
 
@@ -98,21 +98,22 @@ class SimplePlantSensor(SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass."""
         await super().async_added_to_hass()
+        device = self.coordinator.device
+        registry = er.async_get(self.hass)
 
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                f"date.{DOMAIN}_last_watered_{self.device}",
-                self._update_state,
+        # Resolve current entity IDs from the registry so renamed entities
+        # are handled correctly after a restart.
+        for entity_id in filter(None, [
+            registry.async_get_entity_id("date", DOMAIN, f"{DOMAIN}_last_watered_{device}"),
+            registry.async_get_entity_id("number", DOMAIN, f"{DOMAIN}_days_between_waterings_{device}"),
+        ]):
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    entity_id,
+                    self._update_state,
+                )
             )
-        )
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                f"number.{DOMAIN}_days_between_waterings_{self.device}",
-                self._update_state,
-            )
-        )
         self.async_on_remove(
             async_track_time_change(
                 self.hass,
@@ -129,15 +130,15 @@ class SimplePlantSensor(SensorEntity):
     async def _update_state(
         self, _event: Event[EventStateChangedData] | datetime | None = None
     ) -> None:
-        """Update the binary sensor state based on other entities."""
+        """Update the sensor state based on other entities."""
         dates = self.coordinator.get_dates()
 
         if not dates:
             return
 
         # Color
-        today = as_local(dates["today"]).date()
-        next_watering = as_local(dates["next_watering"]).date()
+        today = dates["today"]
+        next_watering = dates["next_watering"]
 
         color_key = "OK"
         if today == next_watering:
