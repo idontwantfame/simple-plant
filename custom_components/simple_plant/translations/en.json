@@ -11,6 +11,29 @@
                     "health": "Current health (Optional)",
                     "species": "Species/Variety of your plant (Optional)"
                 }
+            },
+            "advanced_sensors": {
+                "description": "Optionally link your plant's environmental sensors. These sensors will be displayed under your plant device and monitored against thresholds.",
+                "data": {
+                    "moisture_sensor": "Moisture sensor",
+                    "temperature_sensor": "Temperature sensor",
+                    "illuminance_sensor": "Light sensor",
+                    "conductivity_sensor": "Conductivity sensor",
+                    "battery_sensor": "Battery sensor"
+                }
+            },
+            "advanced_thresholds": {
+                "description": "Set warning thresholds for your linked sensors. The plant will report a problem when values go outside these ranges.",
+                "data": {
+                    "moisture_min": "Moisture minimum",
+                    "moisture_max": "Moisture maximum",
+                    "temperature_min": "Temperature minimum",
+                    "temperature_max": "Temperature maximum",
+                    "illuminance_min": "Minimum light level",
+                    "conductivity_min": "Conductivity minimum",
+                    "conductivity_max": "Conductivity maximum",
+                    "battery_min": "Battery minimum"
+                }
             }
         },
         "error": {
@@ -32,6 +55,29 @@
                     "photo": "Photo",
                     "species": "Species/Variety of your plant (Optional)"
                 }
+            },
+            "advanced_sensors": {
+                "description": "Link your plant's environmental sensors. These sensors will be displayed under your plant device and monitored against thresholds.",
+                "data": {
+                    "moisture_sensor": "Moisture sensor",
+                    "temperature_sensor": "Temperature sensor",
+                    "illuminance_sensor": "Light sensor",
+                    "conductivity_sensor": "Conductivity sensor",
+                    "battery_sensor": "Battery sensor"
+                }
+            },
+            "advanced_thresholds": {
+                "description": "Set warning thresholds for your linked sensors. The plant will report a problem when values go outside these ranges.",
+                "data": {
+                    "moisture_min": "Moisture minimum",
+                    "moisture_max": "Moisture maximum",
+                    "temperature_min": "Temperature minimum",
+                    "temperature_max": "Temperature maximum",
+                    "illuminance_min": "Minimum light level",
+                    "conductivity_min": "Conductivity minimum",
+                    "conductivity_max": "Conductivity maximum",
+                    "battery_min": "Battery minimum"
+                }
             }
         },
         "error": {
@@ -50,6 +96,21 @@
             },
             "problem": {
                 "name": "Late Watering"
+            },
+            "moisture_problem": {
+                "name": "Moisture problem"
+            },
+            "temperature_problem": {
+                "name": "Temperature problem"
+            },
+            "illuminance_problem": {
+                "name": "Light problem"
+            },
+            "conductivity_problem": {
+                "name": "Conductivity problem"
+            },
+            "battery_problem": {
+                "name": "Battery problem"
             }
         },
         "date": {
@@ -65,6 +126,30 @@
         "number": {
             "days_between_waterings": {
                 "name": "Days between waterings"
+            },
+            "moisture_min": {
+                "name": "Moisture minimum"
+            },
+            "moisture_max": {
+                "name": "Moisture maximum"
+            },
+            "temperature_min": {
+                "name": "Temperature minimum"
+            },
+            "temperature_max": {
+                "name": "Temperature maximum"
+            },
+            "illuminance_min": {
+                "name": "Light minimum"
+            },
+            "conductivity_min": {
+                "name": "Conductivity minimum"
+            },
+            "conductivity_max": {
+                "name": "Conductivity maximum"
+            },
+            "battery_min": {
+                "name": "Battery minimum"
             }
         },
         "select": {
@@ -83,6 +168,21 @@
         "sensor": {
             "next_watering": {
                 "name": "Next watering"
+            },
+            "moisture": {
+                "name": "Moisture"
+            },
+            "temperature": {
+                "name": "Temperature"
+            },
+            "illuminance": {
+                "name": "Light level"
+            },
+            "conductivity": {
+                "name": "Conductivity"
+            },
+            "battery": {
+                "name": "Battery"
             }
         }
     },

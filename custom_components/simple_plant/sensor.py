@@ -8,6 +8,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
@@ -15,7 +16,7 @@ from homeassistant.helpers.event import (
     async_track_time_change,
 )
 
-from .const import DOMAIN
+from .const import DOMAIN, MONITORED_METRICS
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -45,10 +46,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    async_add_entities(
-        SimplePlantSensor(hass, entry, entity_description)
-        for entity_description in ENTITY_DESCRIPTIONS
-    )
+    entities: list[SimplePlantSensor | SimplePlantMonitorSensor] = [
+        SimplePlantSensor(hass, entry, description) for description in ENTITY_DESCRIPTIONS
+    ]
+    for metric, config in MONITORED_METRICS.items():
+        if entry.data.get(f"{metric}_sensor"):
+            entities.append(SimplePlantMonitorSensor(hass, entry, metric, config))
+    async_add_entities(entities)
 
 
 class SimplePlantSensor(SensorEntity):
@@ -156,4 +160,62 @@ class SimplePlantSensor(SensorEntity):
 
         # Value
         self._attr_native_value = next_watering
+        self.async_write_ha_state()
+
+
+class SimplePlantMonitorSensor(SensorEntity):
+    """Proxy sensor that mirrors a linked source sensor under the plant device."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        metric: str,
+        metric_config: dict,
+    ) -> None:
+        """Initialize the monitor sensor."""
+        super().__init__()
+        self.coordinator: SimplePlantCoordinator = hass.data[DOMAIN][entry.entry_id]
+        device = self.coordinator.device
+
+        self._source_entity_id: str = entry.data[f"{metric}_sensor"]
+        self._attr_device_class = metric_config["device_class"]
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_translation_key = metric
+
+        self.entity_id = f"sensor.{DOMAIN}_{metric}_{device}"
+        self._attr_unique_id = f"{DOMAIN}_{metric}_{device}"
+
+        self._attr_device_info = self.coordinator.device_info
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity added to hass."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass,
+                self._source_entity_id,
+                self._update_state,
+            )
+        )
+        await self._update_state()
+
+    async def _update_state(
+        self, _event: Event[EventStateChangedData] | None = None
+    ) -> None:
+        """Update value from source entity."""
+        state = self.hass.states.get(self._source_entity_id)
+        if state is None or state.state in ("unavailable", "unknown", ""):
+            self._attr_native_value = None
+        else:
+            try:
+                self._attr_native_value = float(state.state)
+            except ValueError:
+                self._attr_native_value = None
+            unit = state.attributes.get("unit_of_measurement")
+            if unit:
+                self._attr_native_unit_of_measurement = unit
         self.async_write_ha_state()

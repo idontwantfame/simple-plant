@@ -15,7 +15,7 @@ from homeassistant.helpers.event import (
     async_track_time_change,
 )
 
-from .const import DOMAIN
+from .const import DOMAIN, MONITORED_METRICS
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -170,12 +170,75 @@ ENTITIES = [
 ]
 
 
+class SimplePlantMonitorProblem(BinarySensorEntity):
+    """Binary sensor that triggers when a monitored metric is outside its threshold range."""
+
+    _attr_has_entity_name = True
+    _fallback_value = False
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        description: BinarySensorEntityDescription,
+        metric: str,
+    ) -> None:
+        """Initialize the monitor problem binary sensor."""
+        super().__init__()
+        self.entity_description = description
+        self.coordinator: SimplePlantCoordinator = hass.data[DOMAIN][entry.entry_id]
+        self._metric = metric
+        self._source_entity_id: str = entry.data[f"{metric}_sensor"]
+
+        device = self.coordinator.device
+        self.entity_id = f"binary_sensor.{DOMAIN}_{description.key}_{device}"
+        self._attr_unique_id = f"{DOMAIN}_{description.key}_{device}"
+        self._attr_native_value: bool | None = None
+        self._attr_device_info = self.coordinator.device_info
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if the metric is outside its threshold range."""
+        return self._fallback_value if self._attr_native_value is None else self._attr_native_value
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity added to hass."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass,
+                self._source_entity_id,
+                self._update_state,
+            )
+        )
+        await self._update_state()
+
+    async def _update_state(
+        self,
+        _event: Event[EventStateChangedData] | None = None,
+    ) -> None:
+        """Update from coordinator."""
+        result = self.coordinator.get_metric_problem(self._metric)
+        self._attr_native_value = result if result is not None else self._fallback_value
+        self.async_write_ha_state()
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the binary_sensor platform."""
-    async_add_entities(
+    entities: list[BinarySensorEntity] = [
         entity["class"](hass, entry, entity["description"]) for entity in ENTITIES
-    )
+    ]
+    for metric in MONITORED_METRICS:
+        if not entry.data.get(f"{metric}_sensor"):
+            continue
+        description = BinarySensorEntityDescription(
+            key=f"{metric}_problem",
+            translation_key=f"{metric}_problem",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+        )
+        entities.append(SimplePlantMonitorProblem(hass, entry, description, metric))
+    async_add_entities(entities)

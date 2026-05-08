@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import slugify
 from homeassistant.util.dt import as_local, as_utc, utcnow
 
-from .const import DOMAIN, LOGGER, MANUFACTURER
+from .const import DOMAIN, LOGGER, MANUFACTURER, MONITORED_METRICS
 from .data import SimplePlantStore
 
 if TYPE_CHECKING:
@@ -119,6 +119,49 @@ class SimplePlantCoordinator(DataUpdateCoordinator[dict]):
                 self.device, {"_old_last_watered": as_utc(save_old).isoformat()}
             )
         await self.async_set_last_watered(today)
+
+    def get_metric_problem(self, metric: str) -> bool | None:
+        """Return True if metric value is out of threshold range, False if OK, None if unavailable."""
+        source_entity_id = self.config_entry.data.get(f"{metric}_sensor")
+        if not source_entity_id:
+            return None
+        source_state = self.hass.states.get(source_entity_id)
+        if source_state is None or source_state.state in ("unavailable", "unknown", ""):
+            return None
+        try:
+            value = float(source_state.state)
+        except ValueError:
+            return None
+
+        registry = er.async_get(self.hass)
+        metric_config = MONITORED_METRICS[metric]
+
+        min_entity_id = registry.async_get_entity_id(
+            "number", DOMAIN, f"{DOMAIN}_{metric}_min_{self.device}"
+        )
+        if min_entity_id:
+            min_state = self.hass.states.get(min_entity_id)
+            if min_state and min_state.state not in ("unavailable", "unknown", ""):
+                try:
+                    if value < float(min_state.state):
+                        return True
+                except ValueError:
+                    pass
+
+        if metric_config["has_max"]:
+            max_entity_id = registry.async_get_entity_id(
+                "number", DOMAIN, f"{DOMAIN}_{metric}_max_{self.device}"
+            )
+            if max_entity_id:
+                max_state = self.hass.states.get(max_entity_id)
+                if max_state and max_state.state not in ("unavailable", "unknown", ""):
+                    try:
+                        if value > float(max_state.state):
+                            return True
+                    except ValueError:
+                        pass
+
+        return False
 
     def get_dates(self) -> dict[str, date] | None:
         """Get dates from relevant device entity states."""

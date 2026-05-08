@@ -20,7 +20,7 @@ from homeassistant.helpers import selector
 from homeassistant.util import slugify
 from homeassistant.util.dt import as_local, utcnow
 
-from .const import DOMAIN, HEALTH_OPTIONS, IMAGES_MIME_TYPES, LOGGER, STORAGE_DIR
+from .const import DOMAIN, HEALTH_OPTIONS, IMAGES_MIME_TYPES, LOGGER, MONITORED_METRICS, STORAGE_DIR
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -69,6 +69,71 @@ def remove_photo(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 LOGGER.warning("Image file not found: %s", file_path)
     except OSError as err:
         LOGGER.error("Error reading image file %s: %s", file_path, err)
+
+
+## UTILS - SENSOR/THRESHOLD FORMS
+
+
+def sensors_form(suggested_values: dict | None = None) -> vol.Schema:
+    """Return a form for linking environmental sensors to the plant."""
+    schema_dict: dict = {}
+    for metric, config in MONITORED_METRICS.items():
+        suggested = (suggested_values or {}).get(f"{metric}_sensor") or ""
+        schema_dict[
+            vol.Optional(
+                f"{metric}_sensor",
+                description={"suggested_value": suggested},
+            )
+        ] = selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="sensor",
+                device_class=config["device_class"],
+                multiple=False,
+            )
+        )
+    return vol.Schema(schema_dict)
+
+
+def thresholds_form(
+    sensors_data: dict,
+    suggested_thresholds: dict | None = None,
+) -> vol.Schema:
+    """Return a form for configuring metric thresholds (only for linked sensors)."""
+    schema_dict: dict = {}
+    for metric, config in MONITORED_METRICS.items():
+        if not sensors_data.get(f"{metric}_sensor"):
+            continue
+        suggested = suggested_thresholds or {}
+        schema_dict[
+            vol.Optional(
+                f"{metric}_min",
+                default=suggested.get(f"{metric}_min", config["default_min"]),
+            )
+        ] = selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=config["range_min"],
+                max=config["range_max"],
+                step=config["step"],
+                mode=selector.NumberSelectorMode.BOX,
+                unit_of_measurement=config["unit"],
+            )
+        )
+        if config["has_max"]:
+            schema_dict[
+                vol.Optional(
+                    f"{metric}_max",
+                    default=suggested.get(f"{metric}_max", config["default_max"]),
+                )
+            ] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=config["range_min"],
+                    max=config["range_max"],
+                    step=config["step"],
+                    mode=selector.NumberSelectorMode.BOX,
+                    unit_of_measurement=config["unit"],
+                )
+            )
+    return vol.Schema(schema_dict)
 
 
 ## CONFIG FLOW SCHEMAS
@@ -193,7 +258,38 @@ class SimplePlantFlowHandler(ConfigFlow, domain=DOMAIN):
                 errors={"base": "upload_failed_type"},
             )
 
-        return self.async_create_entry(title=user_input["name"], data=user_input)
+        self._user_inputs.update(user_input)
+        return await self.async_step_advanced_sensors()
+
+
+    async def async_step_advanced_sensors(
+        self, user_input: dict | None = None
+    ) -> ConfigFlowResult:
+        """Select optional environmental sensors to link to this plant."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="advanced_sensors",
+                data_schema=sensors_form(),
+            )
+        for metric in MONITORED_METRICS:
+            key = f"{metric}_sensor"
+            if user_input.get(key):
+                self._user_inputs[key] = user_input[key]
+        if any(self._user_inputs.get(f"{metric}_sensor") for metric in MONITORED_METRICS):
+            return await self.async_step_advanced_thresholds()
+        return self.async_create_entry(title=self._user_inputs["name"], data=self._user_inputs)
+
+    async def async_step_advanced_thresholds(
+        self, user_input: dict | None = None
+    ) -> ConfigFlowResult:
+        """Set warning thresholds for linked sensors."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="advanced_thresholds",
+                data_schema=thresholds_form(self._user_inputs),
+            )
+        self._user_inputs.update(user_input)
+        return self.async_create_entry(title=self._user_inputs["name"], data=self._user_inputs)
 
 
 class SimplePlantOptionFlowHandler(OptionsFlow):
@@ -231,7 +327,45 @@ class SimplePlantOptionFlowHandler(OptionsFlow):
                     errors={"base": "upload_failed_type"},
                 )
 
-        # On appelle le step de fin pour enregistrer les modifications
+        return await self.async_step_advanced_sensors()
+
+    async def async_step_advanced_sensors(
+        self, user_input: dict | None = None
+    ) -> ConfigFlowResult:
+        """Select optional environmental sensors to link to this plant."""
+        if user_input is None:
+            current = {
+                f"{m}_sensor": self.config_entry.data.get(f"{m}_sensor", "")
+                for m in MONITORED_METRICS
+            }
+            return self.async_show_form(
+                step_id="advanced_sensors",
+                data_schema=sensors_form(current),
+            )
+        for metric in MONITORED_METRICS:
+            key = f"{metric}_sensor"
+            val = user_input.get(key)
+            self.user_inputs[key] = val if val else None
+        if any(self.user_inputs.get(f"{metric}_sensor") for metric in MONITORED_METRICS):
+            return await self.async_step_advanced_thresholds()
+        return await self.async_end()
+
+    async def async_step_advanced_thresholds(
+        self, user_input: dict | None = None
+    ) -> ConfigFlowResult:
+        """Set warning thresholds for linked sensors."""
+        sensors_data = {**dict(self.config_entry.data), **self.user_inputs}
+        if user_input is None:
+            suggested: dict = {}
+            for m, cfg in MONITORED_METRICS.items():
+                suggested[f"{m}_min"] = self.config_entry.data.get(f"{m}_min", cfg["default_min"])
+                if cfg["has_max"]:
+                    suggested[f"{m}_max"] = self.config_entry.data.get(f"{m}_max", cfg["default_max"])
+            return self.async_show_form(
+                step_id="advanced_thresholds",
+                data_schema=thresholds_form(sensors_data, suggested),
+            )
+        self.user_inputs.update(user_input)
         return await self.async_end()
 
     async def async_end(self) -> ConfigFlowResult:
@@ -243,6 +377,8 @@ class SimplePlantOptionFlowHandler(OptionsFlow):
 
         data = dict(self.config_entry.data)
         data.update(self.user_inputs)
+        # Remove sensor keys explicitly set to None (user cleared them)
+        data = {k: v for k, v in data.items() if v is not None}
         self.hass.config_entries.async_update_entry(self.config_entry, data=data)
 
         return self.async_create_entry(
